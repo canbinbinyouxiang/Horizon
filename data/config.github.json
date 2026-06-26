@@ -2,49 +2,23 @@
   "version": "1.0",
   "ai": {
     "provider": "deepseek",
-    "model": "deepseek-v4-flash",
-    "base_url": "https://api.deepseek.com",
+    "model": "deepseek-chat",
     "api_key_env": "DEEPSEEK_API_KEY",
     "temperature": 0.3,
-    "max_tokens": 8192,
+    "max_tokens": 4096,
     "throttle_sec": 1,
-    "languages": [
-      "zh",
-      "en"
-    ],
-    "analysis_concurrency": 5,
-    "enrichment_concurrency": 5
+    "analysis_concurrency": 2,
+    "enrichment_concurrency": 2,
+    "languages": ["zh", "en"]
+  },
+  "email": {
+    "enabled": false
   },
   "sources": {
-    "github": [
-      {
-        "type": "user_events",
-        "username": "karpathy",
-        "enabled": true
-      },
-      {
-        "type": "repo_releases",
-        "owner": "vllm-project",
-        "repo": "vllm",
-        "enabled": true
-      },
-      {
-        "type": "repo_releases",
-        "owner": "sgl-project",
-        "repo": "sglang",
-        "enabled": true
-      },
-      {
-        "type": "repo_releases",
-        "owner": "triton-lang",
-        "repo": "triton",
-        "enabled": true
-      }
-    ],
     "hackernews": {
       "enabled": true,
       "fetch_top_stories": 30,
-      "min_score": 150
+      "min_score": 100
     },
     "rss": [
       {
@@ -54,73 +28,78 @@
         "category": "ai-tools"
       },
       {
-        "name": "GitHub Trending - Daily",
-        "url": "https://mshibanami.github.io/GitHubTrendingRSS/daily/all.xml",
+        "name": "The Pragmatic Engineer",
+        "url": "https://newsletter.pragmaticengineer.com/feed",
         "enabled": true,
-        "category": "github-trending"
+        "category": "engineering"
       },
       {
-        "name": "Semianalysis",
-        "url": "https://newsletter.semianalysis.com/feed",
+        "name": "Anthropic News",
+        "url": "https://www.anthropic.com/rss.xml",
         "enabled": true,
-        "category": "semiconductors"
+        "category": "ai"
       },
       {
-        "name": "LWN.net",
-        "url": "https://lwn.net/headlines/full_text?key=${LWN_KEY}",
+        "name": "OpenAI Blog",
+        "url": "https://openai.com/news/rss.xml",
         "enabled": true,
-        "category": "linux-kernel"
+        "category": "ai"
+      },
+      {
+        "name": "DeepMind Blog",
+        "url": "https://deepmind.google/blog/rss.xml",
+        "enabled": true,
+        "category": "ai"
       }
     ],
     "reddit": {
-      "enabled": true,
-      "subreddits": [
-        {
-          "subreddit": "MachineLearning",
-          "enabled": true,
-          "sort": "hot",
-          "time_filter": "day",
-          "fetch_limit": 10,
-          "min_score": 60
-        },
-        {
-          "subreddit": "LocalLLaMA",
-          "enabled": true,
-          "sort": "hot",
-          "time_filter": "day",
-          "fetch_limit": 10,
-          "min_score": 60
-        }
-      ],
-      "users": [],
-      "fetch_comments": 10
+      "enabled": false
     },
     "telegram": {
+      "enabled": false
+    },
+    "github": [
+      {
+        "type": "repo_releases",
+        "owner": "deepseek-ai",
+        "repo": "DeepSeek-V3",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "astral-sh",
+        "repo": "uv",
+        "enabled": true
+      },
+      {
+        "type": "repo_releases",
+        "owner": "anthropics",
+        "repo": "claude-code",
+        "enabled": true
+      }
+    ],
+    "ossinsight": {
       "enabled": true,
-      "channels": [
-        {
-          "channel": "zaihuapd",
-          "enabled": true,
-          "fetch_limit": 20
-        }
-      ]
+      "period": "past_24_hours",
+      "languages": ["All", "Python", "TypeScript"],
+      "keywords": [],
+      "min_stars": 20,
+      "max_items": 20
     }
   },
   "filtering": {
-    "ai_score_threshold": 8.0,
+    "ai_score_threshold": 6.0,
     "time_window_hours": 24
   },
   "webhook": {
     "enabled": true,
     "url_env": "HORIZON_WEBHOOK_URL",
-    "delivery": "summary_and_items",
-    "overview_position": "last",
-    "platform": "feishu",
-    "layout": "collapsible",
+    "delivery": "summary",
+    "overview_position": "first",
+    "platform": "generic",
+    "layout": "markdown",
     "fallback_layout": "markdown",
-    "languages": [
-      "zh"
-    ],
+    "languages": ["zh"],
     "request_body": {
       "msg_type": "interactive",
       "card": {
@@ -137,6 +116,13 @@
         },
         "body": {
           "elements": [
+            {
+              "tag": "markdown",
+              "content": "📰 今日重要资讯：**#{important_items}** 条 / 共抓取 **#{all_items}** 条"
+            },
+            {
+              "tag": "hr"
+            },
             {
               "tag": "markdown",
               "content": "#{summary}"
