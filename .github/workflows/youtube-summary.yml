@@ -2,7 +2,7 @@ name: YouTube Video Summarizer
 
 on:
   schedule:
-    - cron: '0 */4 * * *'  # 每 4 小时检查一次新视频
+    - cron: '0 8,12,18,22 * * *'  # 每天8/12/18/22点整执行检查视频
   workflow_dispatch:        # 支持手动触发
 
 jobs:
