@@ -7,6 +7,7 @@ YouTube Video Summarizer
 import os
 import re
 import json
+import subprocess
 import requests
 import feedparser
 from openai import OpenAI
@@ -60,30 +61,89 @@ def get_latest_videos(channel_id: str) -> list[dict]:
     return videos
 
 
-def get_transcript(video_id: str) -> str | None:
-    """获取视频字幕，优先中文，其次英文"""
+def get_transcript_via_api(video_id: str) -> str | None:
+    """通过 youtube-transcript-api 获取字幕（兼容新旧版本）"""
     try:
-        transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
-        # 优先顺序：简体中文 → 繁体中文 → 自动生成中文 → 英文
-        for lang_codes in [
-            ["zh-Hans", "zh", "zh-TW", "zh-Hant"],
-            ["en"],
-        ]:
+        # 新版 API (0.6+) 需要实例化
+        api = YouTubeTranscriptApi()
+        transcript_list = api.list(video_id)
+    except AttributeError:
+        # 旧版 API 回退
+        try:
+            transcript_list = YouTubeTranscriptApi.list_transcripts(video_id)
+        except Exception:
+            return None
+    except (TranscriptsDisabled, NoTranscriptFound):
+        return None
+    except Exception:
+        return None
+
+    try:
+        # 优先顺序：简体中文 → 繁体中文 → 英文
+        for lang_codes in [["zh-Hans", "zh", "zh-TW", "zh-Hant"], ["en"]]:
             try:
                 t = transcript_list.find_transcript(lang_codes)
                 data = t.fetch()
-                return " ".join(item["text"] for item in data)
+                return " ".join(item.get("text", "") for item in data)
             except Exception:
                 pass
-        # 最后尝试自动生成的中文
-        t = transcript_list.find_generated_transcript(["zh-Hans", "zh", "zh-TW"])
-        data = t.fetch()
-        return " ".join(item["text"] for item in data)
-    except (TranscriptsDisabled, NoTranscriptFound):
-        return None
+        # 最后尝试自动生成字幕
+        try:
+            t = transcript_list.find_generated_transcript(["zh-Hans", "zh", "zh-TW", "en"])
+            data = t.fetch()
+            return " ".join(item.get("text", "") for item in data)
+        except Exception:
+            pass
+    except Exception:
+        pass
+    return None
+
+
+def get_transcript_via_ytdlp(video_id: str) -> str | None:
+    """用 yt-dlp 下载字幕（youtube-transcript-api 失败时的备用方案）"""
+    try:
+        video_url = f"https://www.youtube.com/watch?v={video_id}"
+        result = subprocess.run(
+            [
+                "yt-dlp",
+                "--skip-download",
+                "--write-auto-sub",
+                "--sub-lang", "zh-Hans,zh,en",
+                "--sub-format", "vtt",
+                "--output", f"/tmp/{video_id}",
+                video_url,
+            ],
+            capture_output=True, text=True, timeout=60,
+        )
+        # 查找下载的字幕文件
+        import glob
+        files = glob.glob(f"/tmp/{video_id}*.vtt")
+        if not files:
+            return None
+        with open(files[0], encoding="utf-8") as f:
+            raw = f.read()
+        # 去除 VTT 格式标记，只保留文本
+        lines = []
+        for line in raw.splitlines():
+            line = line.strip()
+            if (line and not line.startswith("WEBVTT")
+                    and "-->" not in line
+                    and not line.startswith("NOTE")
+                    and not line.isdigit()):
+                lines.append(line)
+        return " ".join(lines) or None
     except Exception as e:
-        print(f"  ⚠️  获取字幕失败: {e}")
+        print(f"  ⚠️  yt-dlp 获取字幕失败: {e}")
         return None
+
+
+def get_transcript(video_id: str) -> str | None:
+    """获取视频字幕，先用 youtube-transcript-api，失败则用 yt-dlp"""
+    transcript = get_transcript_via_api(video_id)
+    if transcript:
+        return transcript
+    print("  🔄 youtube-transcript-api 未获取到字幕，尝试 yt-dlp...")
+    return get_transcript_via_ytdlp(video_id)
 
 
 def summarize(title: str, transcript: str) -> str:
