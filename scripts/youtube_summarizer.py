@@ -28,7 +28,7 @@ CHANNELS = [
     {"name": "oldpowerful",    "id": "UC8gZZWIWmBuCb_gzC8DUrvw"},
     {"name": "laomanpindao2049", "id": "UCrAC23izk57G7jCBPfdXGkg"},
     {"name": "Asianometry", "id": "UC1LpsuAUaKoMzzJSEt5WImw"},
-    {"name": "Inside_China_Business", "id": "UCNlAaPtfHizB_k6wztaHmZg"},
+    {"name": "Inside_China_Business", "id": "UCNlAaPtfHizB_k6wztaHmZg"}
 ]
 
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
