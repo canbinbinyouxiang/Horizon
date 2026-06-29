@@ -8,6 +8,7 @@ import os
 import re
 import json
 import glob
+import zipfile
 import subprocess
 import tempfile
 import requests
@@ -172,8 +173,46 @@ def extract_pdf_text(pdf_bytes: bytes) -> str | None:
         return None
 
 
+def extract_zip_text(zip_bytes: bytes) -> str | None:
+    """解压 ZIP，提取其中所有 PDF 的文本并合并"""
+    try:
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            zip_path = os.path.join(tmp_dir, "report.zip")
+            with open(zip_path, "wb") as f:
+                f.write(zip_bytes)
+            with zipfile.ZipFile(zip_path, "r") as zf:
+                pdf_names = [n for n in zf.namelist() if n.lower().endswith(".pdf")]
+                if not pdf_names:
+                    print("  ⚠️  ZIP 内未找到 PDF 文件")
+                    return None
+                print(f"  📦 ZIP 内含 {len(pdf_names)} 个 PDF：{', '.join(pdf_names)}")
+                all_texts = []
+                for name in pdf_names:
+                    pdf_bytes_inner = zf.read(name)
+                    text = extract_pdf_text(pdf_bytes_inner)
+                    if text:
+                        all_texts.append(f"=== {name} ===\n{text}")
+                return "\n\n".join(all_texts) or None
+    except Exception as e:
+        print(f"  ⚠️  ZIP 解压失败: {e}")
+        return None
+
+
+def parse_file_bytes(file_bytes: bytes) -> str | None:
+    """根据文件魔数自动识别 PDF / ZIP 并提取文本"""
+    if file_bytes[:4] == b'%PDF':
+        print("  📄 检测为 PDF 格式")
+        return extract_pdf_text(file_bytes)
+    elif file_bytes[:2] == b'PK':
+        print("  📦 检测为 ZIP 格式，正在解压...")
+        return extract_zip_text(file_bytes)
+    else:
+        print("  ⚠️  未知文件格式，跳过解析")
+        return None
+
+
 def get_report_text(description: str) -> str | None:
-    """完整流程：从描述提取链接 → 下载 → 解析文本"""
+    """完整流程：从描述提取链接 → 下载 → 自动识别格式 → 解析文本"""
     file_id = extract_gdrive_file_id(description)
     if not file_id:
         return None
@@ -182,8 +221,8 @@ def get_report_text(description: str) -> str | None:
     if not pdf_bytes:
         print("  ⚠️  文件下载失败")
         return None
-    print(f"  📄 下载完成（{len(pdf_bytes)//1024} KB），解析 PDF...")
-    return extract_pdf_text(pdf_bytes)
+    print(f"  ✅ 下载完成（{len(pdf_bytes)//1024} KB），自动识别格式...")
+    return parse_file_bytes(pdf_bytes)
 
 
 # ── DeepSeek 总结 ─────────────────────────────────────────────────────────────
