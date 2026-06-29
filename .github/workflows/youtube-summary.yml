@@ -27,13 +27,15 @@ jobs:
             feedparser \
             openai \
             requests
+          # yt-dlp 作为字幕备用抓取方案
+          pip install yt-dlp
 
       - name: Run summarizer
         env:
           DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
           HORIZON_WEBHOOK_URL: ${{ secrets.HORIZON_WEBHOOK_URL }}
           # 可选：手动填入 channel_id 跳过自动获取（更稳定）
-          YOUTUBE_CHANNEL_ID: "UC8gZZWIWmBuCb_gzC8DUrvw"
+          # YOUTUBE_CHANNEL_ID: "UCxxxxxxxxxxxxxxxxxx"
         run: python scripts/youtube_summarizer.py
 
       - name: Commit seen videos
