@@ -23,7 +23,12 @@ from youtube_transcript_api import (
 )
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
-CHANNEL_HANDLE = "@oldpowerful"
+# 监听的频道列表，新增频道在此追加即可
+CHANNELS = [
+    {"name": "oldpowerful",    "id": "UC8gZZWIWmBuCb_gzC8DUrvw"},
+    {"name": "laomanpindao2049", "id": "UCrAC23izk57G7jCBPfdXGkg"},
+]
+
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
 DEEPSEEK_API_KEY = os.environ["DEEPSEEK_API_KEY"]
 SEEN_VIDEOS_FILE = "data/seen_videos.json"
@@ -317,18 +322,14 @@ def save_seen_videos(seen: set):
 
 # ── 主流程 ────────────────────────────────────────────────────────────────────
 
-def main():
-    channel_id = os.environ.get("YOUTUBE_CHANNEL_ID", "")
-    if not channel_id:
-        raise ValueError("请在环境变量中设置 YOUTUBE_CHANNEL_ID")
-
-    print(f"✅ Channel ID: {channel_id}")
-    videos = get_latest_videos(channel_id)
+def process_channel(channel: dict, seen: set):
+    """处理单个频道的新视频"""
+    print(f"\n{'='*50}")
+    print(f"📡 频道：{channel['name']}  ({channel['id']})")
+    videos = get_latest_videos(channel["id"])
     print(f"📋 获取到 {len(videos)} 条视频")
 
-    seen = load_seen_videos()
     new_videos = [v for v in videos if v["id"] not in seen]
-
     if not new_videos:
         print("✅ 没有新视频，跳过。")
         return
@@ -370,8 +371,18 @@ def main():
         print(f"  {'✅ 已推送飞书' if success else '❌ 飞书推送失败'}")
         seen.add(video["id"])
 
+
+def main():
+    seen = load_seen_videos()
+
+    for channel in CHANNELS:
+        try:
+            process_channel(channel, seen)
+        except Exception as e:
+            print(f"  ❌ 频道 {channel['name']} 处理失败: {e}")
+
     save_seen_videos(seen)
-    print("\n✅ 全部处理完成。")
+    print("\n✅ 所有频道处理完成。")
 
 
 if __name__ == "__main__":
