@@ -26,9 +26,9 @@ jobs:
             youtube-transcript-api \
             feedparser \
             openai \
-            requests
-          # yt-dlp 作为字幕备用抓取方案
-          pip install yt-dlp
+            requests \
+            pdfplumber \
+            yt-dlp
 
       - name: Run summarizer
         env:
