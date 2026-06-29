@@ -58,6 +58,18 @@
         "url": "https://deepmind.google/blog/rss.xml",
         "enabled": true,
         "category": "ai"
+      },
+      {
+          "name": "新浪财经",
+          "url": "https://rss.sina.com.cn/finance/stock/cngstock.xml",
+          "enabled": true,
+          "category": "finance"
+      },
+      {
+          "name": "东方财富-股票",
+          "url": "https://kuaixun.eastmoney.com/rss/stock.xml",
+          "enabled": true,
+          "category": "finance"
       }
     ],
     "reddit": {
