@@ -1,0 +1,44 @@
+name: YouTube Video Summarizer
+
+on:
+  schedule:
+    - cron: '0 */4 * * *'  # 每 4 小时检查一次新视频
+  workflow_dispatch:        # 支持手动触发
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write       # 需要提交 seen_videos.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            youtube-transcript-api \
+            feedparser \
+            openai \
+            requests
+
+      - name: Run summarizer
+        env:
+          DEEPSEEK_API_KEY: ${{ secrets.DEEPSEEK_API_KEY }}
+          HORIZON_WEBHOOK_URL: ${{ secrets.HORIZON_WEBHOOK_URL }}
+          # 可选：手动填入 channel_id 跳过自动获取（更稳定）
+          # YOUTUBE_CHANNEL_ID: "UCxxxxxxxxxxxxxxxxxx"
+        run: python scripts/youtube_summarizer.py
+
+      - name: Commit seen videos
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/seen_videos.json
+          git diff --staged --quiet || git commit -m "📺 Update seen videos" && git push
