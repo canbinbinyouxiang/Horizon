@@ -2,10 +2,8 @@ name: YouTube Video Summarizer
 
 on:
   schedule:
-    - cron: '0 0,8,18,22 * * *'  # 每天8/12/18/22点整执行检查视频
-      timezone: 'Asia/Shanghai'
+    - cron: '0 0,4,10,14 * * *'  # 每天8/12/18/22点整执行检查视频
   workflow_dispatch:        # 支持手动触发
-
 jobs:
   summarize:
     runs-on: ubuntu-latest
