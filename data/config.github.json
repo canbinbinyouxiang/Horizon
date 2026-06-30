@@ -17,7 +17,7 @@
     "smtp_port": 465,
     "imap_server": "imap.example.com",
     "imap_port": 993,
-    "email_address": "canbinbin@qq.com",
+    "email_address": "placeholder@example.com",
     "sender_name": "Horizon Daily",
     "subscribe_keyword": "SUBSCRIBE",
     "unsubscribe_keyword": "UNSUBSCRIBE"
@@ -43,7 +43,7 @@
       },
       {
         "name": "Anthropic News",
-        "url": "https://www.anthropic.com/rss.xml",
+        "url": "https://diygodrsshubchromium-bundled-production-955c.up.railway.app/anthropic/news",
         "enabled": true,
         "category": "ai"
       },
@@ -60,16 +60,28 @@
         "category": "ai"
       },
       {
-          "name": "新浪财经",
-          "url": "https://rss.sina.com.cn/finance/stock/cngstock.xml",
-          "enabled": true,
-          "category": "finance"
+        "name": "新浪财经",
+        "url": "https://diygodrsshubchromium-bundled-production-955c.up.railway.app/sina/finance/focus_ss",
+        "enabled": true,
+        "category": "finance"
       },
       {
-          "name": "东方财富-股票",
-          "url": "https://kuaixun.eastmoney.com/rss/stock.xml",
-          "enabled": true,
-          "category": "finance"
+        "name": "东方财富-要闻",
+        "url": "https://diygodrsshubchromium-bundled-production-955c.up.railway.app/eastmoney/news/kuaixun",
+        "enabled": true,
+        "category": "finance"
+      },
+      {
+        "name": "小米投资者关系",
+        "url": "https://ir.mi.com/rss/news-releases.xml",
+        "enabled": true,
+        "category": "xiaomi"
+      },
+      {
+        "name": "腾讯音乐IR",
+        "url": "https://ir.tencentmusic.com/rss/news-releases.xml",
+        "enabled": true,
+        "category": "tencent-music"
       }
     ],
     "reddit": {
@@ -108,7 +120,7 @@
     }
   },
   "filtering": {
-    "ai_score_threshold": 7.0,
+    "ai_score_threshold": 6.0,
     "time_window_hours": 24
   },
   "webhook": {
