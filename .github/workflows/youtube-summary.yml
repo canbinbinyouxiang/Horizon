@@ -20,6 +20,9 @@ jobs:
         with:
           python-version: "3.12"
 
+      - name: Install system dependencies
+        run: sudo apt-get install -y poppler-utils
+
       - name: Install dependencies
         run: |
           pip install \
@@ -27,7 +30,8 @@ jobs:
             feedparser \
             openai \
             requests \
-            pdfplumber
+            pdfplumber \
+            pdf2image
           # 始终安装最新版 yt-dlp，避免 YouTube 反爬导致下载失败
           pip install -U yt-dlp
 
