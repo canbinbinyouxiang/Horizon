@@ -32,8 +32,15 @@ jobs:
           pip install -U yt-dlp
 
       - name: Write YouTube cookies
-        if: ${{ secrets.YOUTUBE_COOKIES != '' }}
-        run: echo "${{ secrets.YOUTUBE_COOKIES }}" > /tmp/youtube_cookies.txt
+        env:
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            echo "$YOUTUBE_COOKIES" > /tmp/youtube_cookies.txt
+            echo "✅ YouTube cookies 已写入"
+          else
+            echo "⚠️  未配置 YOUTUBE_COOKIES，跳过"
+          fi
 
       - name: Run summarizer
         env:
