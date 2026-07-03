@@ -4,6 +4,7 @@ YouTube Video Summarizer
 监听 YouTube 频道新视频，提取字幕或研报 PDF，用 DeepSeek 总结后推送飞书。
 """
 
+import io
 import os
 import re
 import json
@@ -312,8 +313,76 @@ def download_gdrive_pdf(file_id: str) -> bytes | None:
     return None
 
 
-def extract_pdf_text(pdf_bytes: bytes) -> str | None:
-    """从 PDF 字节提取纯文本"""
+def extract_pdf_text_via_mimo(pdf_bytes: bytes, mimo_key: str) -> str | None:
+    """
+    将 PDF 各页转为图片，通过 MiMo 图像理解提取文字。
+    适用于扫描件、图像型投行研报等 pdfplumber 无法识别的 PDF。
+    """
+    try:
+        from pdf2image import convert_from_bytes
+    except ImportError:
+        print("  ⚠️  pdf2image 未安装，跳过图像理解")
+        return None
+
+    try:
+        images = convert_from_bytes(pdf_bytes, dpi=150, fmt="png")
+    except Exception as e:
+        print(f"  ⚠️  PDF 转图失败: {e}")
+        return None
+
+    if not images:
+        return None
+
+    MAX_PAGES = 20   # 控制 token 消耗，研报前 20 页通常含主要内容
+    images = images[:MAX_PAGES]
+    print(f"  🖼  共 {len(images)} 页，开始 MiMo 图像理解...")
+
+    client = OpenAI(api_key=mimo_key, base_url="https://api.xiaomimimo.com/v1")
+    page_texts = []
+
+    for i, img in enumerate(images, 1):
+        buf = io.BytesIO()
+        img.save(buf, format="PNG")
+        img_b64 = base64.b64encode(buf.getvalue()).decode("utf-8")
+
+        try:
+            resp = client.chat.completions.create(
+                model="mimo-v2.5",
+                messages=[{
+                    "role": "user",
+                    "content": [
+                        {
+                            "type": "image_url",
+                            "image_url": {"url": f"data:image/png;base64,{img_b64}"},
+                        },
+                        {
+                            "type": "text",
+                            "text": (
+                                "请完整提取这张图片（投资银行研究报告页面）中的所有文字内容，"
+                                "包括标题、正文、表格数据、图注等，保持原有层次结构输出，不要遗漏任何数字和关键词。"
+                            ),
+                        },
+                    ],
+                }],
+                max_completion_tokens=2000,
+            )
+            text = resp.choices[0].message.content or ""
+            if text:
+                page_texts.append(f"[第{i}页]\n{text}")
+                print(f"  ✅ 第 {i}/{len(images)} 页提取 {len(text)} 字符")
+        except Exception as e:
+            print(f"  ⚠️  第 {i} 页识别失败: {e}")
+
+    result = "\n\n".join(page_texts)
+    return result or None
+
+
+def extract_pdf_text(pdf_bytes: bytes, mimo_key: str | None = None) -> str | None:
+    """
+    从 PDF 字节提取纯文本。
+    若 pdfplumber 提取内容不足 500 字符（图像型 PDF），自动回退到 MiMo 图像理解。
+    """
+    text = ""
     try:
         with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
             f.write(pdf_bytes)
@@ -325,13 +394,22 @@ def extract_pdf_text(pdf_bytes: bytes) -> str | None:
                 if t:
                     text_parts.append(t)
         os.unlink(tmp_path)
-        return "\n".join(text_parts) or None
+        text = "\n".join(text_parts)
     except Exception as e:
         print(f"  ⚠️  PDF 解析失败: {e}")
-        return None
+
+    if len(text) >= 500:
+        return text
+
+    # 内容不足 → 图像型 PDF，尝试 MiMo 图像理解
+    print(f"  🔍 pdfplumber 仅获得 {len(text)} 字符，切换 MiMo 图像理解...")
+    if not mimo_key:
+        print("  ⚠️  未配置 MIMO_API_KEY，无法使用图像理解")
+        return text or None
+    return extract_pdf_text_via_mimo(pdf_bytes, mimo_key) or text or None
 
 
-def extract_zip_text(zip_bytes: bytes) -> str | None:
+def extract_zip_text(zip_bytes: bytes, mimo_key: str | None = None) -> str | None:
     """解压 ZIP，提取其中所有 PDF 的文本并合并"""
     try:
         with tempfile.TemporaryDirectory() as tmp_dir:
@@ -347,7 +425,7 @@ def extract_zip_text(zip_bytes: bytes) -> str | None:
                 all_texts = []
                 for name in pdf_names:
                     pdf_bytes_inner = zf.read(name)
-                    text = extract_pdf_text(pdf_bytes_inner)
+                    text = extract_pdf_text(pdf_bytes_inner, mimo_key)
                     if text:
                         all_texts.append(f"=== {name} ===\n{text}")
                 return "\n\n".join(all_texts) or None
@@ -356,14 +434,14 @@ def extract_zip_text(zip_bytes: bytes) -> str | None:
         return None
 
 
-def parse_file_bytes(file_bytes: bytes) -> str | None:
+def parse_file_bytes(file_bytes: bytes, mimo_key: str | None = None) -> str | None:
     """根据文件魔数自动识别 PDF / ZIP 并提取文本"""
     if file_bytes[:4] == b'%PDF':
         print("  📄 检测为 PDF 格式")
-        return extract_pdf_text(file_bytes)
+        return extract_pdf_text(file_bytes, mimo_key)
     elif file_bytes[:2] == b'PK':
         print("  📦 检测为 ZIP 格式，正在解压...")
-        return extract_zip_text(file_bytes)
+        return extract_zip_text(file_bytes, mimo_key)
     else:
         print("  ⚠️  未知文件格式，跳过解析")
         return None
@@ -371,6 +449,7 @@ def parse_file_bytes(file_bytes: bytes) -> str | None:
 
 def get_report_text(description: str) -> str | None:
     """完整流程：从描述提取链接 → 下载 → 自动识别格式 → 解析文本"""
+    mimo_key = os.environ.get("MIMO_API_KEY")
     file_id = extract_gdrive_file_id(description)
     if not file_id:
         return None
@@ -380,7 +459,7 @@ def get_report_text(description: str) -> str | None:
         print("  ⚠️  文件下载失败")
         return None
     print(f"  ✅ 下载完成（{len(pdf_bytes)//1024} KB），自动识别格式...")
-    return parse_file_bytes(pdf_bytes)
+    return parse_file_bytes(pdf_bytes, mimo_key)
 
 
 # ── DeepSeek 总结 ─────────────────────────────────────────────────────────────
