@@ -8,6 +8,8 @@ import os
 import re
 import json
 import glob
+import math
+import base64
 import zipfile
 import subprocess
 import tempfile
@@ -27,8 +29,6 @@ from youtube_transcript_api import (
 CHANNELS = [
     {"name": "oldpowerful",    "id": "UC8gZZWIWmBuCb_gzC8DUrvw"},
     {"name": "laomanpindao2049", "id": "UCrAC23izk57G7jCBPfdXGkg"},
-    {"name": "Asianometry", "id": "UC1LpsuAUaKoMzzJSEt5WImw"},
-    {"name": "Inside_China_Business", "id": "UCNlAaPtfHizB_k6wztaHmZg"}
 ]
 
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
@@ -123,6 +123,121 @@ def get_transcript(video_id: str) -> str | None:
     except Exception:
         pass
     return None
+
+
+# ── MiMo ASR 音频转写 ─────────────────────────────────────────────────────────
+
+CHUNK_MAX_BYTES = 6 * 1024 * 1024   # 6MB 原始音频 ≈ Base64 后约 8MB，留安全余量
+
+
+def download_audio(video_id: str) -> str | None:
+    """用 yt-dlp 下载音频，转为 32kbps MP3（节省空间，够 ASR 用）"""
+    audio_path = f"/tmp/{video_id}.mp3"
+    try:
+        subprocess.run(
+            [
+                "yt-dlp", "-x",
+                "--audio-format", "mp3",
+                "--postprocessor-args", "ffmpeg:-ar 16000 -b:a 32k",
+                "-o", audio_path,
+                f"https://www.youtube.com/watch?v={video_id}",
+            ],
+            capture_output=True, text=True, timeout=180, check=True,
+        )
+        return audio_path if os.path.exists(audio_path) else None
+    except Exception as e:
+        print(f"  ⚠️  音频下载失败: {e}")
+        return None
+
+
+def split_audio(audio_path: str) -> list[str]:
+    """若音频超过 CHUNK_MAX_BYTES，用 ffmpeg 按时长等分切片"""
+    file_size = os.path.getsize(audio_path)
+    if file_size <= CHUNK_MAX_BYTES:
+        return [audio_path]
+
+    # 获取总时长
+    probe = subprocess.run(
+        ["ffprobe", "-v", "quiet", "-print_format", "json",
+         "-show_format", audio_path],
+        capture_output=True, text=True, timeout=30,
+    )
+    duration = float(json.loads(probe.stdout)["format"]["duration"])
+
+    num_chunks = math.ceil(file_size / CHUNK_MAX_BYTES)
+    seg_time = int(duration / num_chunks)
+
+    base = audio_path.replace(".mp3", "")
+    subprocess.run(
+        [
+            "ffmpeg", "-y", "-i", audio_path,
+            "-f", "segment",
+            "-segment_time", str(seg_time),
+            "-c", "copy",
+            f"{base}_%03d.mp3",
+        ],
+        capture_output=True, timeout=120,
+    )
+    chunks = sorted(glob.glob(f"{base}_*.mp3"))
+    return chunks if chunks else [audio_path]
+
+
+def transcribe_chunk(audio_path: str, mimo_key: str) -> str:
+    """将单段音频 Base64 编码后发给 MiMo ASR，返回文字"""
+    with open(audio_path, "rb") as f:
+        audio_b64 = base64.b64encode(f.read()).decode("utf-8")
+
+    client = OpenAI(api_key=mimo_key, base_url="https://api.xiaomimimo.com/v1")
+    resp = client.chat.completions.create(
+        model="mimo-v2.5-asr",
+        messages=[{
+            "role": "user",
+            "content": [{
+                "type": "input_audio",
+                "input_audio": {"data": f"data:audio/mpeg;base64,{audio_b64}"},
+            }],
+        }],
+        extra_body={"asr_options": {"language": "zh"}},
+    )
+    return resp.choices[0].message.content or ""
+
+
+def get_transcript_via_mimo_asr(video_id: str) -> str | None:
+    """完整 ASR 流程：下载 → 分段 → 逐段转写 → 拼接"""
+    mimo_key = os.environ.get("MIMO_API_KEY")
+    if not mimo_key:
+        print("  ⚠️  未配置 MIMO_API_KEY，跳过 ASR")
+        return None
+
+    print("  🎵 下载音频...")
+    audio_path = download_audio(video_id)
+    if not audio_path:
+        return None
+
+    file_size = os.path.getsize(audio_path)
+    print(f"  ✅ 音频下载完成（{file_size // 1024} KB）")
+
+    chunks = split_audio(audio_path)
+    print(f"  📦 共 {len(chunks)} 段，开始逐段转写...")
+
+    texts = []
+    for i, chunk in enumerate(chunks, 1):
+        print(f"  🔤 转写第 {i}/{len(chunks)} 段...")
+        try:
+            text = transcribe_chunk(chunk, mimo_key)
+            if text:
+                texts.append(text)
+        except Exception as e:
+            print(f"  ⚠️  第 {i} 段转写失败: {e}")
+        finally:
+            if chunk != audio_path and os.path.exists(chunk):
+                os.unlink(chunk)
+
+    if os.path.exists(audio_path):
+        os.unlink(audio_path)
+
+    result = " ".join(texts).strip()
+    return result or None
 
 
 # ── Google Drive 研报下载 ──────────────────────────────────────────────────────
@@ -352,21 +467,30 @@ def process_channel(channel: dict, seen: set):
             source_label = "字幕"
             print(f"  ✅ 获取到字幕（{len(transcript)} 字符）")
         else:
-            # 2. 尝试研报 PDF
-            print("  🔍 无字幕，尝试从描述获取研报...")
-            desc = get_full_description(video["id"], video["description"])
-            report_text = get_report_text(desc)
-            if report_text:
-                content = report_text
-                content_type = "report"
-                source_label = "研报 PDF"
-                print(f"  ✅ 研报解析成功（{len(report_text)} 字符）")
+            # 2. 尝试 MiMo ASR 音频转写
+            print("  🔍 无字幕，尝试 MiMo ASR 音频转写...")
+            asr_text = get_transcript_via_mimo_asr(video["id"])
+            if asr_text:
+                content = asr_text
+                content_type = "transcript"
+                source_label = "MiMo ASR"
+                print(f"  ✅ ASR 转写成功（{len(asr_text)} 字符）")
             else:
-                # 3. 兜底：标题分析
-                print("  📝 无研报，使用标题进行分析...")
-                content = video["title"]
-                content_type = "title_only"
-                source_label = "标题分析"
+                # 3. 尝试研报 PDF
+                print("  🔍 ASR 失败，尝试从描述获取研报...")
+                desc = get_full_description(video["id"], video["description"])
+                report_text = get_report_text(desc)
+                if report_text:
+                    content = report_text
+                    content_type = "report"
+                    source_label = "研报 PDF"
+                    print(f"  ✅ 研报解析成功（{len(report_text)} 字符）")
+                else:
+                    # 4. 兜底：标题分析
+                    print("  📝 使用标题进行分析...")
+                    content = video["title"]
+                    content_type = "title_only"
+                    source_label = "标题分析"
 
         summary = summarize(video["title"], content, content_type)
         success = send_to_feishu(video, summary, source_label)
