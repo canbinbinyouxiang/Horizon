@@ -1,0 +1,43 @@
+name: Telegram Channel Summarizer
+
+on:
+  schedule:
+    - cron: '0 2,8,14 * * *'  # 北京时间 10:00 / 16:00 / 22:00
+  workflow_dispatch:            # 支持手动触发
+
+jobs:
+  summarize:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write           # 需要提交 seen_tg_messages.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests beautifulsoup4 openai
+
+      - name: Run Telegram summarizer
+        env:
+          DEEPSEEK_API_KEY:    ${{ secrets.DEEPSEEK_API_KEY }}
+          HORIZON_WEBHOOK_URL: ${{ secrets.HORIZON_WEBHOOK_URL }}
+        run: python scripts/telegram_summarizer.py
+
+      - name: Commit seen messages
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/seen_tg_messages.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📡 Update seen Telegram messages"
+            git pull --rebase origin main
+            git push
+          fi
