@@ -496,11 +496,24 @@ def summarize(title: str, content: str, content_type: str = "transcript") -> str
 
 ## 值得关注
 （对投资者或研究者最有价值的信息或风险提示）
+
+## 板块与个股影响
+基于上述内容，分析对 A 股或港股市场的潜在影响：
+
+**利好板块/题材**
+逐条列出，每条格式为：
+- **板块/题材名称**：利好逻辑（1-2 句）→ 龙头个股：股票名称（代码）、股票名称（代码）……
+
+**利空板块/题材**
+逐条列出，同上格式：
+- **板块/题材名称**：利空逻辑（1-2 句）→ 龙头个股：股票名称（代码）、股票名称（代码）……
+
+（若内容与某方向无明显关联，可注明"暂无明显利空/利好"）
 """
     resp = client.chat.completions.create(
         model="deepseek-chat",
         messages=[{"role": "user", "content": prompt}],
-        max_tokens=1500,
+        max_tokens=2500,
         temperature=0.3,
     )
     return resp.choices[0].message.content
