@@ -54,7 +54,50 @@ def strip_html(html: str) -> str:
 
 # ── 频道 & 视频信息 ────────────────────────────────────────────────────────────
 
+def get_latest_videos_via_ytdlp(channel_id: str) -> list[dict]:
+    """RSS 为空时，用 yt-dlp 直接拉取频道视频列表"""
+    channel_url = f"https://www.youtube.com/channel/{channel_id}/videos"
+    cmd = [
+        "yt-dlp",
+        "--flat-playlist",
+        "--print", "%(id)s\t%(title)s\t%(upload_date)s",
+        "--playlist-items", f"1:{MAX_RECENT_VIDEOS}",
+        "--no-check-certificates",
+        channel_url,
+    ]
+    cookies_file = "/tmp/youtube_cookies.txt"
+    if os.path.exists(cookies_file):
+        cmd.extend(["--cookies", cookies_file])
+
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=60)
+        if result.returncode != 0:
+            print(f"  ⚠️  yt-dlp 获取列表失败: {result.stderr[-200:]}")
+            return []
+        videos = []
+        for line in result.stdout.strip().splitlines():
+            parts = line.split("\t")
+            if len(parts) < 2:
+                continue
+            vid_id, title = parts[0], parts[1]
+            date = parts[2] if len(parts) > 2 else ""
+            if len(date) == 8:
+                date = f"{date[:4]}-{date[4:6]}-{date[6:]}"
+            videos.append({
+                "id":          vid_id,
+                "title":       title,
+                "url":         f"https://www.youtube.com/watch?v={vid_id}",
+                "published":   date,
+                "description": "",
+            })
+        return videos
+    except Exception as e:
+        print(f"  ⚠️  yt-dlp 获取列表异常: {e}")
+        return []
+
+
 def get_latest_videos(channel_id: str) -> list[dict]:
+    """优先用 RSS，为空时自动降级到 yt-dlp"""
     rss_url = f"https://www.youtube.com/feeds/videos.xml?channel_id={channel_id}"
     feed = feedparser.parse(rss_url)
     videos = []
@@ -66,6 +109,11 @@ def get_latest_videos(channel_id: str) -> list[dict]:
             "published":   entry.published,
             "description": strip_html(entry.get("summary", "")),
         })
+
+    if not videos:
+        print("  🔄 RSS 为空，降级到 yt-dlp 获取视频列表...")
+        videos = get_latest_videos_via_ytdlp(channel_id)
+
     return videos
 
 
