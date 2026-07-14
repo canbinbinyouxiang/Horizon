@@ -1,0 +1,59 @@
+name: YouTube Transcriber
+
+on:
+  schedule:
+    - cron: '0 0,10,14 * * *'  # 北京时间 8:00 / 18:00 / 22:00
+  workflow_dispatch:             # 支持手动触发
+
+jobs:
+  transcribe:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write            # 需要提交 seen_transcribed.json
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: |
+          pip install \
+            youtube-transcript-api \
+            feedparser \
+            openai \
+            requests
+          pip install -U yt-dlp
+
+      - name: Write YouTube cookies
+        env:
+          YOUTUBE_COOKIES: ${{ secrets.YOUTUBE_COOKIES }}
+        run: |
+          if [ -n "$YOUTUBE_COOKIES" ]; then
+            echo "$YOUTUBE_COOKIES" > /tmp/youtube_cookies.txt
+            echo "✅ YouTube cookies 已写入"
+          else
+            echo "⚠️  未配置 YOUTUBE_COOKIES，跳过"
+          fi
+
+      - name: Run transcriber
+        env:
+          HORIZON_WEBHOOK_URL: ${{ secrets.HORIZON_WEBHOOK_URL }}
+          MIMO_API_KEY:        ${{ secrets.MIMO_API_KEY }}
+        run: python scripts/youtube_transcriber.py
+
+      - name: Commit seen videos
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add data/seen_transcribed.json
+          if git diff --staged --quiet; then
+            echo "No changes to commit"
+          else
+            git commit -m "📝 Update seen transcribed videos"
+            git pull --rebase origin main
+            git push
