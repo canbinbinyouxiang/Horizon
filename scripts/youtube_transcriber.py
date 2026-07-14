@@ -163,6 +163,9 @@ def download_audio(video_id: str) -> str | None:
         "--audio-quality", "5",
         "--no-playlist",
         "--no-check-certificates",
+        # 绕过 GitHub Actions DC IP 的 bot 检测
+        "--extractor-args", "youtube:player_client=tv_embedded,web",
+        "--add-headers", "User-Agent:Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/124.0 Safari/537.36",
         "-o", raw_path,
         video_url,
     ]
