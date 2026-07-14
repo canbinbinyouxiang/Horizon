@@ -24,8 +24,7 @@ from youtube_transcript_api import (
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 CHANNELS = [
-    {"name": "oldpowerful",      "id": "UC8gZZWIWmBuCb_gzC8DUrvw"},
-    {"name": "laomanpindao2049", "id": "UCrAC23izk57G7jCBPfdXGkg"},
+    {"name": "zrzjpl",      "id": "UCcQYrNiWlG7XQyooF4-b0iA"},
 ]
 
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
