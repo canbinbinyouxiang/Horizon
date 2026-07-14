@@ -24,7 +24,7 @@ from youtube_transcript_api import (
 
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 CHANNELS = [
-    {"name": "zrzjpl",      "id": "UCcQYrNiWlG7XQyooF4-b0iA"},
+    {"name": "zrzjpl", "id": "UCcQYrNiWlG7XQyooF4-b0iA"},
 ]
 
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
@@ -291,6 +291,11 @@ def process_channel(channel: dict, seen: set):
     print(f"\n{'='*50}")
     print(f"📡 频道：{channel['name']}  ({channel['id']})")
     videos = get_latest_videos(channel["id"])
+    print(f"  📋 RSS 获取到 {len(videos)} 条视频")
+    for v in videos:
+        status = "✅ 新" if v["id"] not in seen else "⏭ 已处理"
+        print(f"    [{status}] {v['id']}  {v['title'][:40]}")
+
     new_videos = [v for v in videos if v["id"] not in seen]
 
     if not new_videos:
