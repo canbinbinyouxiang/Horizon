@@ -57,3 +57,4 @@ jobs:
             git commit -m "📝 Update seen transcribed videos"
             git pull --rebase origin main
             git push
+          fi
