@@ -28,14 +28,56 @@ STOCKS = [
     },
     {
         "name":    "腾讯音乐",
-        "code":    "TME",
-        "market":  "美股",
+        "code":    "01698.HK",
+        "market":  "港股",
         "aliases": ["TME", "腾讯音乐"],
+    },
+    {
+        "name":    "中国核电",
+        "code":    "601985.SH",
+        "market":  "A股",
+        "aliases": ["601985", "中国核电"],
+    },
+    {
+        "name":    "中国核建",
+        "code":    "601611.SH",
+        "market":  "A股",
+        "aliases": ["601611", "中国核建"],
+    },
+    {
+        "name":    "紫金矿业",
+        "code":    "601899.SH",
+        "market":  "A股",
+        "aliases": ["601899", "紫金矿业"],
+    },
+    {
+        "name":    "宏桥控股",
+        "code":    "002379.SZ",
+        "market":  "A股",
+        "aliases": ["002379", "宏桥控股"],
+    },
+    {
+        "name":    "中科曙光",
+        "code":    "603019.SH",
+        "market":  "A股",
+        "aliases": ["603019", "中科曙光"],
+    },
+    {
+        "name":    "中国中免",
+        "code":    "01880.HK",
+        "market":  "港股",
+        "aliases": ["01880", "中国中免"],
+    },
+    {
+        "name":    "晶泰控股",
+        "code":    "02228.HK",
+        "market":  "港股",
+        "aliases": ["02228", "晶泰控股"],
     },
 ]
 
 # ── Telegram 研报频道 ─────────────────────────────────────────────────────────
-TELEGRAM_CHANNELS = ["hgclhyyb", "xhqcankao"]
+TELEGRAM_CHANNELS = ["hgclhyyb", "xhqcankao","hgclhyyb","ReutersZh","qzdzb"]
 
 # ── 环境变量 ──────────────────────────────────────────────────────────────────
 STOCK_WEBHOOK_URL = os.environ["STOCK_WEBHOOK_URL"]
