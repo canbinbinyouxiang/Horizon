@@ -2,7 +2,7 @@ name: Telegram Channel Summarizer
 
 on:
   schedule:
-    - cron: '0 16 * * *'  # 北京时间 10:00 / 16:00 / 22:00
+    - cron: '0 16 * * *'  #
   workflow_dispatch:            # 支持手动触发
 
 jobs:
