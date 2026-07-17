@@ -23,7 +23,7 @@ CHANNELS = [
 FEISHU_WEBHOOK_URL  = os.environ["HORIZON_WEBHOOK_URL"]
 DEEPSEEK_API_KEY    = os.environ["DEEPSEEK_API_KEY"]
 SEEN_FILE           = "data/seen_tg_messages.json"
-MAX_NEW_MESSAGES    = 60    # 每个频道最多处理 60 条新消息
+MAX_NEW_MESSAGES    = 200    # 每个频道最多处理 60 条新消息
 MAX_CONTENT_CHARS   = 12000 # 送给 DeepSeek 的最大字符数
 REQUEST_DELAY       = 2     # 两次请求之间的间隔（秒）
 # ─────────────────────────────────────────────────────────────────────────────
