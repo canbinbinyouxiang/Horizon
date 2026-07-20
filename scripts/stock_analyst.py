@@ -77,7 +77,7 @@ STOCKS = [
 ]
 
 # ── Telegram 研报频道 ─────────────────────────────────────────────────────────
-TELEGRAM_CHANNELS = ["hgclhyyb", "xhqcankao","hgclhyyb","ReutersZh","qzdzb"]
+TELEGRAM_CHANNELS = ["hgclhyyb", "xhqcankao","hgclhyyb","ReutersZh","qzdzb","hejzl_xjk","Guanshuitan"]
 
 # ── 环境变量 ──────────────────────────────────────────────────────────────────
 STOCK_WEBHOOK_URL = os.environ["STOCK_WEBHOOK_URL"]
