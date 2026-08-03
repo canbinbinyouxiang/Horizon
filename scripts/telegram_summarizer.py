@@ -18,6 +18,7 @@ from openai import OpenAI
 CHANNELS = [
     {"name": "A股研报快讯",   "id": "hgclhyyb"},
     {"name": "风向旗参考快讯", "id": "xhqcankao"},
+    {"name": "GlobalMarcoView", "id": "Marcoview666"},
 ]
 
 FEISHU_WEBHOOK_URL  = os.environ["HORIZON_WEBHOOK_URL"]
