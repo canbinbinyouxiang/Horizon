@@ -28,8 +28,7 @@ from youtube_transcript_api import (
 # ── 配置 ──────────────────────────────────────────────────────────────────────
 # 监听的频道列表，新增频道在此追加即可
 CHANNELS = [
-    {"name": "oldpowerful",    "id": "UC8gZZWIWmBuCb_gzC8DUrvw"},
-    {"name": "laomanpindao2049", "id": "UCrAC23izk57G7jCBPfdXGkg"},
+    {"name": "oldpowerful",    "id": "UC8gZZWIWmBuCb_gzC8DUrvw"}
 ]
 
 FEISHU_WEBHOOK_URL = os.environ["HORIZON_WEBHOOK_URL"]
